@@ -33,8 +33,13 @@
         .hidden { display: none !important; }
         input { width: 80%; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; text-align: center; font-size: 1.1rem; }
 
-        /* تنسيقات صفحة المراجعة والتغذية الراجعة */
-        .review-container { text-align: right; margin-top: 25px; max-height: 480px; overflow-y: auto; padding: 10px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; }
+        /* منطقة التغذية الراجعة الفورية تحت السؤال */
+        #immediate-feedback { margin-top: 20px; padding: 15px; border-radius: 10px; font-size: 1rem; line-height: 1.6; text-align: right; }
+        #immediate-feedback.correct-fb { background: rgba(39, 174, 96, 0.1); border-right: 5px solid var(--correct); color: #1e8449; }
+        #immediate-feedback.wrong-fb { background: rgba(231, 76, 60, 0.1); border-right: 5px solid var(--wrong); color: #c0392b; }
+
+        /* تنسيقات صفحة المراجعة النهائية */
+        .review-container { text-align: right; margin-top: 25px; max-height: 450px; overflow-y: auto; padding: 10px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; }
         .review-item { padding: 18px; margin-bottom: 15px; border-radius: 8px; border-right: 6px solid #ccc; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
         .review-item.correct-ans { border-right-color: var(--correct); }
         .review-item.wrong-ans { border-right-color: var(--wrong); }
@@ -85,6 +90,10 @@
         </div>
         <div id="question-text" class="q-text"></div>
         <div id="options-area" class="options-grid"></div>
+        
+        <!-- صندوق التغذية الراجعة الفورية -->
+        <div id="immediate-feedback" class="hidden"></div>
+
         <div style="text-align: center; margin-top: 35px;">
             <button id="next-btn" class="btn hidden" onclick="nextQuestion()">السؤال التالي ⮕</button>
         </div>
@@ -94,7 +103,7 @@
         <h2 id="final-greeting"></h2>
         <div style="font-size: 3rem; font-weight: bold; margin: 15px 0; color: var(--main-color);" id="score-text"></div>
         
-        <!-- قسم ملخص الإجابات والتغذية الراجعة المفصلة -->
+        <!-- قسم ملخص الإجابات والتغذية الراجعة المفصلة النهائية -->
         <div style="text-align: right; font-weight: bold; margin-bottom: 5px; color: #2c3e50;">📊 ملخص إجاباتك والتغذية الراجعة المفصلة:</div>
         <div id="review-list" class="review-container"></div>
 
@@ -257,8 +266,8 @@
             t: "أعرب", 
             q: "في جملة (يا طالباً العلمَ، أقبلْ)، ما إعراب (طالباً)؟", 
             opts: ["منادى شبيه بالمضاف منصوب وعلامة نصبه الفتحة", "منادى مضاف منصوب", "منادى مبني على الضمة", "نعت منصوب"], 
-            ans: "منادى شبيه بالمضاف منصوب وعلامة نصبه الفتحة",
-            exp: "القاعدة: منور متصل به ما يتمم معناه (العلم مفعول به لاسم الفاعل)، فيُعرب منادى شبيه بالمضاف منصوباً."
+            ans: "منادى شبيه بالمضاف وعلامة نصبه الفتحة",
+            exp: "القاعدة: منون متصل به ما يتمم معناه (العلم مفعول به لاسم الفاعل)، فيُعرب منادى شبيه بالمضاف منصوباً."
         },
         { 
             t: "أعرب", 
@@ -416,6 +425,11 @@
         document.getElementById('question-text').innerHTML = data.q;
         document.getElementById('next-btn').classList.add('hidden');
         
+        // إخفاء وإعادة تعيين التغذية الفورية
+        const fbBox = document.getElementById('immediate-feedback');
+        fbBox.className = 'hidden';
+        fbBox.innerHTML = '';
+        
         const box = document.getElementById('options-area'); box.innerHTML = '';
         [...data.opts].sort(() => Math.random() - 0.5).forEach(o => {
             const d = document.createElement('div'); d.className = 'opt'; d.innerText = o;
@@ -438,11 +452,25 @@
                     if(el.innerText === data.ans) el.classList.add('correct');
                     else if(el.innerText === o) el.classList.add('wrong');
                 });
+
+                // إظهار التغذية الفورية تحت الخيارات وقبل الانتقال
+                showImmediateFeedback(isCorrect, data.ans, data.exp);
+
                 document.getElementById('next-btn').classList.remove('hidden');
             };
             box.appendChild(d);
         });
         startTimer();
+    }
+
+    function showImmediateFeedback(isCorrect, correctAns, exp) {
+        const fbBox = document.getElementById('immediate-feedback');
+        fbBox.className = isCorrect ? 'correct-fb' : 'wrong-fb';
+        let statusTitle = isCorrect ? "✅ أحسنت! إجابة صحيحة وموفقة." : `❌ إجابة خاطئة. الإجابة الصحيحة: (${correctAns})`;
+        fbBox.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 5px;">${statusTitle}</div>
+            <div><strong>📌 التغذية الراجعة والقاعدة:</strong> ${exp}</div>
+        `;
     }
 
     function startTimer() {
@@ -460,7 +488,14 @@
                     skillType: finalQuestions[currentIdx].t,
                     explanation: finalQuestions[currentIdx].exp
                 });
-                nextQuestion(); 
+                
+                // إظهار التغذية الفورية عند انتهاء الوقت أيضاً
+                showImmediateFeedback(false, finalQuestions[currentIdx].ans, finalQuestions[currentIdx].exp);
+                document.querySelectorAll('.opt').forEach(el => {
+                    el.onclick = null;
+                    if(el.innerText === finalQuestions[currentIdx].ans) el.classList.add('correct');
+                });
+                document.getElementById('next-btn').classList.remove('hidden');
             }
         }, 1000);
     }
